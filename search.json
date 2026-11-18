@@ -1,0 +1,51 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "election-2026",
+    "section": "",
+    "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites."
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site"
+  },
+  {
+    "objectID": "analysis.html",
+    "href": "analysis.html",
+    "title": "2026 Midterm Senate Election: Florida vs. National",
+    "section": "",
+    "text": "In the November 2026 midterm elections, Florida hosted a pivotal U.S. Senate special election between incumbent Ashley Moody (Republican) and state representative Angie Nixon (Democrat).\nStatewide, Ashley Moody won with 50.86% (4,211,733 votes) to Angie Nixon’s 48.00% (3,975,375 votes)—a tight +2.86% Republican margin.\nThis report visualizes the 2026 Senate race nationwide, highlights Florida’s position on the national board, and explores Florida’s county-by-county voting patterns in detail.\n\n\nCode\nlibrary(tidyverse)\nlibrary(patchwork)\nlibrary(plotly)\n\n# Load data extracted from Fox News\nfl_senate &lt;- read_csv(\"data/florida_senate_2026.csv\")\nus_senate &lt;- read_csv(\"data/us_senate_2026.csv\")"
+  },
+  {
+    "objectID": "analysis.html#overview",
+    "href": "analysis.html#overview",
+    "title": "2026 Midterm Senate Election: Florida vs. National",
+    "section": "",
+    "text": "In the November 2026 midterm elections, Florida hosted a pivotal U.S. Senate special election between incumbent Ashley Moody (Republican) and state representative Angie Nixon (Democrat).\nStatewide, Ashley Moody won with 50.86% (4,211,733 votes) to Angie Nixon’s 48.00% (3,975,375 votes)—a tight +2.86% Republican margin.\nThis report visualizes the 2026 Senate race nationwide, highlights Florida’s position on the national board, and explores Florida’s county-by-county voting patterns in detail.\n\n\nCode\nlibrary(tidyverse)\nlibrary(patchwork)\nlibrary(plotly)\n\n# Load data extracted from Fox News\nfl_senate &lt;- read_csv(\"data/florida_senate_2026.csv\")\nus_senate &lt;- read_csv(\"data/us_senate_2026.csv\")"
+  },
+  {
+    "objectID": "analysis.html#executive-summary-national-florida-comparison",
+    "href": "analysis.html#executive-summary-national-florida-comparison",
+    "title": "2026 Midterm Senate Election: Florida vs. National",
+    "section": "Executive Summary: National & Florida Comparison",
+    "text": "Executive Summary: National & Florida Comparison\nHere we combine a national map showing all 35 contested Senate seats with an expanded, high-resolution view of Florida’s 67 counties.\n\n\nCode\n# 1. Prepare US map data\nstate_lookup &lt;- tibble(\n  state = state.abb,\n  region = tolower(state.name)\n)\n\nus_map_data &lt;- map_data(\"state\") |&gt;\n  left_join(state_lookup, by = \"region\") |&gt;\n  left_join(us_senate, by = \"state\")\n\n# National map with Florida highlighted in gold\np_us &lt;- ggplot() +\n  geom_polygon(\n    data = us_map_data,\n    aes(x = long, y = lat, group = group, fill = winner_party),\n    color = \"white\",\n    linewidth = 0.25\n  ) +\n  # Distinctive gold highlight around Florida\n  geom_polygon(\n    data = us_map_data |&gt; filter(region == \"florida\"),\n    aes(x = long, y = lat, group = group),\n    color = \"#E69F00\",\n    fill = NA,\n    linewidth = 1.4\n  ) +\n  scale_fill_manual(\n    values = c(\"D\" = \"#2166AC\", \"R\" = \"#B2182B\"),\n    na.value = \"#EAEAEA\",\n    labels = c(\"D\" = \"Democrat Win\", \"R\" = \"Republican Win\", \"No 2026 Senate Race\"),\n    name = \"2026 Senate Result\"\n  ) +\n  coord_quickmap() +\n  theme_void(base_size = 12) +\n  theme(\n    legend.position = \"top\",\n    plot.title = element_text(face = \"bold\", size = 15, hjust = 0.5),\n    plot.subtitle = element_text(color = \"gray30\", size = 11, hjust = 0.5, margin = margin(b = 10))\n  ) +\n  labs(\n    title = \"2026 U.S. Senate Midterm Results Across the Country\",\n    subtitle = \"Contested seats shaded by winning party • Florida highlighted with gold border\"\n  )\n\n# 2. Prepare Florida county map data\nfl_counties &lt;- map_data(\"county\", region = \"florida\") |&gt;\n  mutate(county = str_to_title(subregion)) |&gt;\n  left_join(fl_senate |&gt; mutate(county = str_to_title(county)), by = \"county\")\n\n# Key metro county centroids for labels\nkey_centroids &lt;- fl_counties |&gt;\n  filter(county %in% c(\"Miami-Dade\", \"Broward\", \"Orange\", \"Hillsborough\", \"Duval\", \"Pinellas\", \"Leon\", \"Alachua\")) |&gt;\n  group_by(county) |&gt;\n  summarize(long = mean(long), lat = mean(lat), .groups = \"drop\")\n\n# Florida detailed county map\np_fl &lt;- ggplot() +\n  geom_polygon(\n    data = fl_counties,\n    aes(x = long, y = lat, group = group, fill = rep_margin),\n    color = \"white\",\n    linewidth = 0.3\n  ) +\n  geom_polygon(\n    data = fl_counties,\n    aes(x = long, y = lat, group = group),\n    color = \"#222222\",\n    fill = NA,\n    linewidth = 0.5\n  ) +\n  # Subtle labels for major metropolitan counties\n  geom_text(\n    data = key_centroids,\n    aes(x = long, y = lat, label = county),\n    size = 3.2,\n    fontface = \"bold\",\n    color = \"gray10\",\n    check_overlap = TRUE\n  ) +\n  scale_fill_gradient2(\n    low = \"#2166AC\",\n    mid = \"#F7F7F7\",\n    high = \"#B2182B\",\n    midpoint = 0,\n    limits = c(-70, 70),\n    name = \"Vote Margin (%)\",\n    labels = \\(x) paste0(ifelse(x &gt; 0, \"+\", \"\"), round(x), \"% Moody\")\n  ) +\n  coord_quickmap() +\n  theme_void(base_size = 12) +\n  theme(\n    legend.position = \"bottom\",\n    plot.title = element_text(face = \"bold\", size = 15, hjust = 0.5),\n    plot.subtitle = element_text(color = \"gray30\", size = 11, hjust = 0.5, margin = margin(b = 10))\n  ) +\n  labs(\n    title = \"Florida Senate Race: Detailed County Vote Margins\",\n    subtitle = \"Ashley Moody (R) 50.86% vs. Angie Nixon (D) 48.00% • Margin: Moody +2.86%\"\n  )\n\n# Combine both maps using patchwork\np_combined &lt;- p_us / p_fl + plot_layout(heights = c(1, 1.3))\np_combined"
+  },
+  {
+    "objectID": "analysis.html#interactive-florida-county-explorer",
+    "href": "analysis.html#interactive-florida-county-explorer",
+    "title": "2026 Midterm Senate Election: Florida vs. National",
+    "section": "Interactive Florida County Explorer",
+    "text": "Interactive Florida County Explorer\nHover over any county to inspect the exact vote tallies, percentage shares, and the final margin.\n\n\nCode\n# Tooltip text for interactive inspection\nfl_counties_interactive &lt;- fl_counties |&gt;\n  mutate(\n    tooltip = paste0(\n      \"&lt;b&gt;\", county, \" County&lt;/b&gt;&lt;br&gt;\",\n      \"Ashley Moody (R): \", scales::comma(moody_votes), \" (\", moody_pct, \"%)&lt;br&gt;\",\n      \"Angie Nixon (D): \", scales::comma(nixon_votes), \" (\", nixon_pct, \"%)&lt;br&gt;\",\n      \"Margin: \", ifelse(rep_margin &gt; 0, paste0(\"Moody +\", rep_margin, \"%\"), paste0(\"Nixon +\", abs(rep_margin), \"%\"))\n    )\n  )\n\np_interactive &lt;- ggplot(fl_counties_interactive, aes(x = long, y = lat, group = group, fill = rep_margin, text = tooltip)) +\n  geom_polygon(color = \"white\", linewidth = 0.2) +\n  scale_fill_gradient2(\n    low = \"#2166AC\",\n    mid = \"#F7F7F7\",\n    high = \"#B2182B\",\n    midpoint = 0,\n    name = \"Margin (%)\"\n  ) +\n  coord_quickmap() +\n  theme_void() +\n  labs(title = \"Hover over any Florida county for full vote breakdown\")\n\nggplotly(p_interactive, tooltip = \"text\")"
+  },
+  {
+    "objectID": "analysis.html#key-battleground-counties",
+    "href": "analysis.html#key-battleground-counties",
+    "title": "2026 Midterm Senate Election: Florida vs. National",
+    "section": "Key Battleground Counties",
+    "text": "Key Battleground Counties\nThe table below highlights Florida’s largest and closest counties that determined the outcome:\n\n\nCode\nfl_senate |&gt;\n  select(county, moody_votes, nixon_votes, moody_pct, nixon_pct, rep_margin, winner) |&gt;\n  arrange(abs(rep_margin)) |&gt;\n  slice_head(n = 10) |&gt;\n  knitr::kable(\n    col.names = c(\"County\", \"Moody (R) Votes\", \"Nixon (D) Votes\", \"Moody %\", \"Nixon %\", \"Margin (%)\", \"Winner\"),\n    caption = \"Top 10 Closest Florida Counties in the 2026 Senate Special Election\"\n  )\n\n\n\nTop 10 Closest Florida Counties in the 2026 Senate Special Election\n\n\n\n\n\n\n\n\n\n\n\nCounty\nMoody (R) Votes\nNixon (D) Votes\nMoody %\nNixon %\nMargin (%)\nWinner\n\n\n\n\nPinellas\n197538\n200207\n48.93\n49.59\n-0.66\nDemocrat\n\n\nSt Lucie\n67122\n70412\n48.25\n50.61\n-2.36\nDemocrat\n\n\nPolk\n136183\n119100\n52.73\n46.12\n6.61\nRepublican\n\n\nSeminole\n90133\n103330\n46.08\n52.83\n-6.75\nDemocrat\n\n\nMiami-Dade\n359992\n416036\n45.87\n53.01\n-7.14\nDemocrat\n\n\nMonroe\n17450\n14593\n53.93\n45.10\n8.83\nRepublican\n\n\nHillsborough\n232131\n278799\n44.89\n53.91\n-9.02\nDemocrat\n\n\nEscambia\n63160\n51944\n54.22\n44.59\n9.63\nRepublican\n\n\nPalm Beach\n253054\n311716\n44.33\n54.60\n-10.27\nDemocrat\n\n\nDuval\n158152\n197618\n44.03\n55.02\n-10.99\nDemocrat"
+  }
+]
